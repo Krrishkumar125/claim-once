@@ -1,5 +1,8 @@
 # claim-once
 
+[![npm](https://img.shields.io/npm/v/claim-once)](https://www.npmjs.com/package/claim-once)
+[![CI](https://github.com/Krrishkumar125/claim-once/actions/workflows/ci.yml/badge.svg)](https://github.com/Krrishkumar125/claim-once/actions/workflows/ci.yml)
+
 **Run a side effect at most once per operation key, across every worker, with Redis. When it cannot know, it says so.**
 
 Queues and agents retry. BullMQ hands a stalled job to another worker. A tool call gets replayed after a timeout. A process dies between sending the email and writing down that it sent it. Each of those is a chance to charge a card twice, or to quietly never charge it at all.

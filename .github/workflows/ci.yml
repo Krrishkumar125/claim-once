@@ -62,3 +62,26 @@ jobs:
         with:
           node-version: 18
       - run: node test/smoke.mjs
+
+  bullmq6-ioredis6:
+    name: Tests on bullmq 6 and ioredis 6
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save bullmq@6 ioredis@6
+      - run: npm ls bullmq ioredis --depth=0 || true
+      - run: npm run typecheck
+      - run: npm test
