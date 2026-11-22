@@ -34,7 +34,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "claim-once-lab": "./dist/lab/cli.js"
+    "claim-once-lab": "dist/lab/cli.js"
   },
   "exports": {
     ".": {
