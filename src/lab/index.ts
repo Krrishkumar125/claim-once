@@ -162,6 +162,16 @@ export async function runLab(opts: LabOptions = {}): Promise<LabRow[]> {
 }
 
 /** Render rows as a Markdown table. */
+/**
+ * What would make the lab a failed proof: claim-once ran an effect twice or lost one without
+ * flagging it. Empty means claim-once held its guarantee in every scenario that ran.
+ */
+export function labProblems(rows: readonly LabRow[]): string[] {
+  return rows
+    .filter((r) => r.strategy === 'claim-once' && (r.duplicates > 0 || r.lost > 0))
+    .map((r) => `${SCENARIO_LABELS[r.scenario]}: ${r.duplicates} duplicate(s), ${r.lost} lost`);
+}
+
 export function formatTable(rows: LabRow[]): string {
   const head = '| Scenario | Strategy | Ops | Effects run | Duplicates | Lost | in_doubt |';
   const sep = '|---|---|---:|---:|---:|---:|---:|';

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { formatTable, runLab, SCENARIOS, type Scenario } from './index.js';
+import { formatTable, labProblems, runLab, SCENARIOS, type Scenario } from './index.js';
 
 const { values } = parseArgs({
   options: {
@@ -10,6 +10,7 @@ const { values } = parseArgs({
     lease: { type: 'string' },
     scenario: { type: 'string', multiple: true },
     json: { type: 'boolean' },
+    check: { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 });
@@ -17,7 +18,9 @@ const { values } = parseArgs({
 if (values.help) {
   console.log(`claim-once-lab: crash real worker processes and count side effects.
 
-Usage: claim-once-lab [--redis redis://127.0.0.1:6379] [--ops 20] [--runners 8] [--lease 400] [--scenario NAME]... [--json]
+Usage: claim-once-lab [--redis redis://127.0.0.1:6379] [--ops 20] [--runners 8] [--lease 400] [--scenario NAME]... [--json] [--check]
+
+  --check   Exit 1 if claim-once ran any effect twice or lost one (use it as a CI gate)
 
 Scenarios: ${SCENARIOS.join(', ')}
 Uses keys under claim-once-lab:* and deletes them afterwards. Point it at a scratch Redis.`);
@@ -40,6 +43,11 @@ runLab({ redisUrl: values.redis, ops: num(values.ops), runners: num(values.runne
     else {
       console.log(formatTable(rows));
       console.log(`\n${rows.reduce((n, r) => n + r.kills, 0)} worker processes were SIGKILLed. Took ${((Date.now() - started) / 1000).toFixed(1)} s.`);
+    }
+    if (values.check) {
+      const problems = labProblems(rows);
+      for (const p of problems) console.error(`claim-once guarantee broken: ${p}`);
+      if (problems.length) process.exit(1);
     }
   },
   (err) => {

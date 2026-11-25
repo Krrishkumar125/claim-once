@@ -36,8 +36,14 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run check:exports
-      - name: Crash lab (built CLI)
-        run: node dist/lab/cli.js --ops 10 --runners 4
+      - name: Crash lab (built CLI), fails the build if claim-once duplicates or loses an effect
+        shell: bash
+        run: |
+          {
+            echo "### Crash lab, Node ${{ matrix.node }}"
+            echo
+            node dist/lab/cli.js --ops 20 --runners 8 --check
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
   node18-runtime:
     name: Node 18 runtime (built package)

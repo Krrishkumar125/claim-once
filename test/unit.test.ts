@@ -69,3 +69,15 @@ describe('helper keys', () => {
     expect(() => onceTool(once, 'x', async () => 1)({}, {})).toThrow(/no tool call id/);
   });
 });
+
+describe('labProblems', () => {
+  const row = (strategy: 'claim-once' | 'none', duplicates: number, lost: number) => ({
+    scenario: 'kill-in-gap' as const, strategy, ops: 5, effects: 5, duplicates, lost, inDoubt: 0, kills: 5,
+  });
+  it('flags only claim-once rows that duplicated or lost an effect', async () => {
+    const { labProblems } = await import('../src/lab/index.js');
+    expect(labProblems([row('none', 5, 0), row('claim-once', 0, 0)])).toEqual([]);
+    expect(labProblems([row('claim-once', 1, 0)])).toEqual(['SIGKILL after the claim, before the effect: 1 duplicate(s), 0 lost']);
+    expect(labProblems([row('claim-once', 0, 2)])).toHaveLength(1);
+  });
+});
