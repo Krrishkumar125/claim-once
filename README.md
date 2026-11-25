@@ -68,6 +68,22 @@ if (r.status === 'reserved') {
 }
 ```
 
+## Fencing your own writes
+
+The fencing token protects Redis, and you can pass it on so a downstream store protects itself too. Every claim gets a token higher than any earlier claim on the same key, and `runOnce` hands it to your function as `ctx.token`. Store it with the write and refuse writes that carry a lower one:
+
+```ts
+await once.runOnce(`ledger:${orderId}`, async ({ token }) => {
+  // Postgres: the row only changes if no newer claim has written it.
+  const res = await sql`
+    UPDATE orders SET status = 'refunded', fence = ${token}
+    WHERE id = ${orderId} AND fence < ${token}`;
+  if (res.count === 0) throw new Error('a newer claim already wrote this order');
+});
+```
+
+A worker that was paused (a GC pause, a frozen VM) and comes back after a takeover then cannot overwrite the newer result, even if its own Redis calls are slow to fail.
+
 ## Errors from your function
 
 By default a thrown error **releases** the key, which means "the effect did not happen, a retry is fine". That is right for a declined card or a 400. It is wrong for a timeout after the request was sent. Tell it which is which:
@@ -177,7 +193,26 @@ How to read it:
 - **Stalled past the lease**: the stalled worker could not heartbeat, a second worker started, saw a lease that ran out after the effect began, and backed off with in_doubt. The first worker then woke up, ran the effect and settled the key as done with its own token.
 - **Concurrent**: one claim per key won, the rest got `InProgressError`.
 
+The same lab runs in CI on every push, on Node 20, 22 and 24, with `--check`: the build fails if claim-once runs any effect twice or loses one, and the table for that run is in the job summary of the [CI workflow](https://github.com/Krrishkumar125/claim-once/actions/workflows/ci.yml). Run it yourself with `npx claim-once-lab --check`.
+
 The lab uses keys under `claim-once-lab:*` and deletes them when it finishes. Point it at a scratch Redis anyway. You can also run it from code: `import { runLab, formatTable } from 'claim-once/lab'`.
+
+## Compared with
+
+Checked on 26 Nov 2026.
+
+| | **claim-once** | [idemfence](https://www.npmjs.com/package/idemfence) 0.1.0 | Redis locks (Redlock and similar) | BullMQ `jobId` |
+| --- | --- | --- | --- | --- |
+| Scope | Any side effect: jobs, tool calls, scripts | HTTP requests (Idempotency-Key header) | Mutual exclusion | Enqueueing |
+| Fencing tokens | Yes | Yes | No | No |
+| Stores and replays the result | Yes | Yes, the HTTP response | No | No |
+| Says "unknown" after a crash mid-effect (`in_doubt` plus reconcile hook) | Yes | No (none in its 0.1.0 code or docs) | No | No |
+| Store | Redis | PostgreSQL | Redis | Redis |
+| Crash lab with real SIGKILL | Yes, in CI | No | No | No |
+
+If your idempotency boundary is an HTTP API and your data lives in Postgres, idemfence is built for that. claim-once is for work that happens inside workers and agents, where the question after a crash is whether the effect already happened.
+
+A Postgres store for claim-once is not in this release. The state machine is small, but every transition has to stay one atomic step with the same lease and token rules, and that needs its own crash lab run before it ships.
 
 ## API
 
