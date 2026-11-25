@@ -1,6 +1,6 @@
 {
   "name": "claim-once",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Run a side effect at most once per operation key across processes, backed by Redis. Atomic Lua claims with leases, fencing tokens, an explicit in_doubt state and a reconcile hook. BullMQ and tool-call helpers, plus a SIGKILL crash lab.",
   "keywords": [
     "idempotency",
